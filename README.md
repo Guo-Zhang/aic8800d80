@@ -1,100 +1,48 @@
-# AIC8800D80 Linux Driver
-This driver is for the AIC8800D80 chipset, supported by devices such as the Tenda U11 and AX913B.
+# AIC8800 Linux Driver
 
-Added support for devices with Vendor ID 368B (tested).
+AIC8800 WiFi 驱动程序,适用于 Arch Linux 平台。
 
-Tested on Linux kernel 6.16 with Ubuntu 25.04 and 6.1.0.27 with Debian 12.
+## 概述
 
-> **Bluetooth Support**: The [`bluetooth`](https://github.com/shenmintao/aic8800d80/tree/bluetooth) branch fully supports Bluetooth. This main branch only provides Wi-Fi functionality. Please switch to the `bluetooth` branch if you need Bluetooth support.
+本驱动修复了 AIC8800 芯片在 Linux Kernel 6.17.1-arch1-1 版本下的编译错误问题。\
+**2025.11.11更新**： Linux Kernel 6.17.7-arch1-1 在Arch Linux x64平台上仍可以编译通过
 
-### Disclaimer
-I did not develop this software, The code is sourced from the Tenda U11 driver. I only made some modifications to the code to adapt it to newer kernel versions. Apart from compilation issues, I am unable to address other problems.
+## 测试环境
 
-### Attention
-Before installing the driver, delete all aic8800-related folders under /lib/firmware. Using an incorrect firmware version may cause the system to freeze.
+- **平台**: Arch Linux
+- **内核版本**: Linux 6.17.1-arch1-1
+- **外联网卡**: 绿联AX300-CM762
+## 致谢
 
-### Installation Steps
+本项目参考了以下资源:
 
-#### Method 1: [Quick Installation](INSTALL_SCRIPT.md) (Recommended)
+- [绿联官方 AX300 驱动](https://www.ugreen.com/)
+- [sqlwwx/aic8800](https://github.com/sqlwwx/aic8800) 项目中的适配工作
+- 使用 codex 辅助进行代码修改
 
-#### Method 2: Manual Installation
-
-#### Copy udev rules:
-Copy the aic.rules file to /lib/udev/rules.d/:
-
-```bash
-sudo cp aic.rules /lib/udev/rules.d/
-```
-
-#### Copy firmware:
-
-Copy the aic8800D80 folder from ./fw to /lib/firmware/:
+## 编译安装
 
 ```bash
-sudo cp -r ./fw/aic8800D80 /lib/firmware/
-```
-#### Navigate to the driver directory:
+# 克隆仓库
+git clone https://github.com/BLUEMOON233/AIC8800-Linux-Driver.git
 
-Change to the drivers/aic8800 directory:
+#初始化
+cd AIC8800-Linux-Driver
+sudo su
+sh install_setup.sh
+cd drivers/aic8800
 
-```bash
-cd ./drivers/aic8800
-```
-
-#### Compile and Install the Driver:
-
-First, compile the driver:
-
-```bash
+# 编译
 make
-```
-Then, install the driver:
 
-```bash
-sudo make install
-```
+# 安装
+make install
 
-For any kernel updates, you'll need to reinstall the driver:
+# 加载驱动
+modprobe cfg80211
+modprobe aic_load_fw
+modprobe aic8800_fdrv
 
-```bash
-make clean
-make
-sudo make install
-```
-
-### Load the Driver
-After installation, load the driver with the following command:
-
-```bash
-sudo modprobe aic8800_fdrv
-```
-
-### Verify the Module is Active
-Check if the module is loaded correctly:
-
-```bash
+# 查看驱动加载情况
 lsmod | grep aic
 ```
-You should see output similar to:
-
-```bash
-aic8800_fdrv    536576  0
-cfg80211        1146880 1   aic8800_fdrv
-aic_load_fw     69632   1   aic8800_fdrv
-usbcore         348160  10  xhci_hcd,ehci_pci,usbhid,usb_storage,ehci_hcd,xhci_pci,uas,aic_load_fw,uhci_hcd,aic8800_fdrv
-```
-
-After that, plug in your USB wireless network card.
-
-### Verify Wi-Fi Device is Active
-To check if the Wi-Fi interface is recognized, run:
-
-```bash
-iwconfig
-```
-If the device is still not active, check the kernel logs for any errors related to the driver:
-
-```bash
-sudo dmesg
-```
-

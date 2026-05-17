@@ -77,6 +77,43 @@
 #endif
 
 
+/*
+ * cfg80211 API compat helpers for kernel >= 6.17
+ * Some notification helpers gained a link_id argument.
+ * Provide thin wrappers so existing call sites keep working.
+ */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 17, 0)
+static inline bool rwnx_cfg80211_rx_spurious_frame(struct net_device *dev,
+                                                  const u8 *addr,
+                                                  gfp_t gfp)
+{
+    /* -1 means unknown or not applicable link_id for single-link */
+    return cfg80211_rx_spurious_frame(dev, addr, -1, gfp);
+}
+
+static inline bool rwnx_cfg80211_rx_unexpected_4addr_frame(struct net_device *dev,
+                                                          const u8 *addr,
+                                                          gfp_t gfp)
+{
+    return cfg80211_rx_unexpected_4addr_frame(dev, addr, -1, gfp);
+}
+#else
+static inline bool rwnx_cfg80211_rx_spurious_frame(struct net_device *dev,
+                                                  const u8 *addr,
+                                                  gfp_t gfp)
+{
+    return cfg80211_rx_spurious_frame(dev, addr, gfp);
+}
+
+static inline bool rwnx_cfg80211_rx_unexpected_4addr_frame(struct net_device *dev,
+                                                          const u8 *addr,
+                                                          gfp_t gfp)
+{
+    return cfg80211_rx_unexpected_4addr_frame(dev, addr, gfp);
+}
+#endif
+
+
 
 #if LINUX_VERSION_CODE >= HIGH_KERNEL_VERSION
 #ifndef IEEE80211_MAX_AMPDU_BUF

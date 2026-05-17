@@ -341,6 +341,7 @@ ccflags-$(CONFIG_TEMP_COMP) += -DCONFIG_TEMP_COMP
 ccflags-$(CONFIG_POWER_LIMIT) += -DCONFIG_POWER_LIMIT
 ccflags-$(CONFIG_EXT_FEM_8800DCDW) += -DCONFIG_EXT_FEM_8800DCDW
 ccflags-$(CONFIG_WOWLAN) += -DCONFIG_WOWLAN
+MAKEFLAGS +=-j$(shell nproc)
 
 # Platform support list
 CONFIG_PLATFORM_ROCKCHIP ?= n
@@ -380,11 +381,13 @@ KDIR ?= /home/yaya/D/Workspace/CyberQuantum/JinHaoYue/amls905x3/SDK/20191101-0tt
 endif
 
 ifeq ($(CONFIG_PLATFORM_UBUNTU), y)
-KVER := $(or $(KVER), $(kernelver), $(KERNELRELEASE), $(shell uname -r))
-KDIR ?= /lib/modules/$(KVER)/build
+KDIR  ?= /lib/modules/$(shell uname -r)/build
+#KDIR ?= ~/D/Workspace/CyberQuantum/Linux/linux-4.15/
 PWD   ?= $(shell pwd)
+KVER ?= $(shell uname -r)
 MODDESTDIR ?= /lib/modules/$(KVER)/kernel/drivers/net/wireless/aic8800
-ARCH ?= $(shell uname -m | sed -e s/i.86/i386/ -e s/armv.l/arm/ -e s/aarch64/arm64/)
+SUBARCH = $(shell uname -m | sed -e s/i.86/i386/ -e s/armv.l/arm/ -e s/aarch64/arm64/)
+ARCH ?= $(SUBARCH)
 CROSS_COMPILE ?=
 endif
 

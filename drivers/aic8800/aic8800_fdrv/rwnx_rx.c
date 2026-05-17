@@ -11,6 +11,7 @@
 #include <linux/ieee80211.h>
 #include <linux/etherdevice.h>
 #include <net/ieee80211_radiotap.h>
+#include <linux/timer.h>
 
 #include "rwnx_defs.h"
 #include "rwnx_rx.h"
@@ -481,9 +482,7 @@ static bool rwnx_rx_data_skb(struct rwnx_hw *rwnx_hw, struct rwnx_vif *rwnx_vif,
         rwnx_rxdata_process_amsdu(rwnx_hw, skb, flags_vif_idx, &list);
         #else
         int count;
-// Debian 6.1.0-26 backported the new function call, but not Ubuntu 6.2.
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0) || \
-    (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 109) && LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0))
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
         ieee80211_amsdu_to_8023s(skb, &list, rwnx_vif->ndev->dev_addr,
                                  RWNX_VIF_TYPE(rwnx_vif), 0, NULL, NULL, false);
 #else
@@ -1586,13 +1585,8 @@ int reord_flush_tid(struct aicwf_rx_priv *rx_priv, struct sk_buff *skb, u8 tid)
 	AICWFDBG(LOGINFO, "flush:tid=%d", tid);
     preorder_ctrl->enable = false;
     spin_unlock_irqrestore(&preorder_ctrl->reord_list_lock, flags);
-    if (timer_pending(&preorder_ctrl->reord_timer)) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0))
-	    ret = timer_delete_sync(&preorder_ctrl->reord_timer);
-#else
+    if (timer_pending(&preorder_ctrl->reord_timer))
         ret = del_timer_sync(&preorder_ctrl->reord_timer);
-#endif
-    }
     cancel_work_sync(&preorder_ctrl->reord_timer_work);
 
     return 0;
@@ -1618,11 +1612,7 @@ void reord_deinit_sta(struct aicwf_rx_priv* rx_priv, struct reord_ctrl_info *reo
 		if(preorder_ctrl->enable){
 			preorder_ctrl->enable = false;
 	        if (timer_pending(&preorder_ctrl->reord_timer)) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0))
-	           ret = timer_delete_sync(&preorder_ctrl->reord_timer);
-#else
 	            ret = del_timer_sync(&preorder_ctrl->reord_timer);
-#endif
 	        }
 	        cancel_work_sync(&preorder_ctrl->reord_timer_work);
 		}
@@ -1636,11 +1626,7 @@ void reord_deinit_sta(struct aicwf_rx_priv* rx_priv, struct reord_ctrl_info *reo
             reord_rxframe_free(&rx_priv->freeq_lock, &rx_priv->rxframes_freequeue, &req->rxframe_list);
         }
 
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(6, 18, 0))
 		AICWFDBG(LOGINFO, "reord dinit in_irq():%d in_atomic:%d in_softirq:%d\r\n", (int)in_irq()
-#else
-		AICWFDBG(LOGINFO, "reord dinit in_irq():%d in_atomic:%d in_softirq:%d\r\n", (int)in_hardirq()
-#endif
 			,(int)in_atomic(), (int)in_softirq());
         spin_unlock_bh(&preorder_ctrl->reord_list_lock);
     }
@@ -1873,12 +1859,10 @@ void reord_timeout_handler (ulong data)
 void reord_timeout_handler (struct timer_list *t)
 #endif
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,15,0)
 	struct reord_ctrl *preorder_ctrl = (struct reord_ctrl *)data;
-#elif LINUX_VERSION_CODE < KERNEL_VERSION(6,16,0)
-	struct reord_ctrl *preorder_ctrl = from_timer(preorder_ctrl, t, reord_timer);
 #else
-	struct reord_ctrl *preorder_ctrl = timer_container_of(preorder_ctrl, t, reord_timer);
+	struct reord_ctrl *preorder_ctrl = container_of(t, struct reord_ctrl, reord_timer);
 #endif
 
 	AICWFDBG(LOGTRACE, "%s Enter \r\n", __func__);
@@ -2038,11 +2022,7 @@ int reord_process_unit(struct recv_msdu *pframe, struct aicwf_rx_priv *rx_priv, 
         }
     } else {
 		if(timer_pending(&preorder_ctrl->reord_timer)) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0))
-	        	ret = timer_delete(&preorder_ctrl->reord_timer);
-#else
 	        	ret = del_timer(&preorder_ctrl->reord_timer);
-#endif
 		}
     }
 
@@ -2206,10 +2186,8 @@ void defrag_timeout_cb(struct timer_list *t)
 	struct defrag_ctrl_info *defrag_ctrl = NULL;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
 	defrag_ctrl = (struct defrag_ctrl_info *)data;
-#elif LINUX_VERSION_CODE < KERNEL_VERSION(6,16,0)
-	defrag_ctrl = from_timer(defrag_ctrl, t, defrag_timer);
 #else
-	defrag_ctrl = timer_container_of(defrag_ctrl, t, defrag_timer);
+	defrag_ctrl = container_of(t, struct defrag_ctrl_info, defrag_timer);
 #endif
 
 	printk("%s:%p\r\n", __func__, defrag_ctrl);
@@ -2375,11 +2353,7 @@ check_len_update:
         hdr = (struct ieee80211_hdr *)(skb->data + msdu_offset);
         rwnx_vif = rwnx_rx_get_vif(rwnx_hw, hw_rxhdr->flags_vif_idx);
         if (rwnx_vif) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 17, 0)
-            cfg80211_rx_spurious_frame(rwnx_vif->ndev, hdr->addr2, -1, GFP_ATOMIC);
-#else
-            cfg80211_rx_spurious_frame(rwnx_vif->ndev, hdr->addr2, GFP_ATOMIC);
-#endif
+            rwnx_cfg80211_rx_spurious_frame(rwnx_vif->ndev, hdr->addr2, GFP_ATOMIC);
         }
         goto end;
     }
@@ -2574,11 +2548,7 @@ check_len_update:
 							skb_tmp = defrag_info->skb;
 							list_del_init(&defrag_info->list);
 							if (timer_pending(&defrag_info->defrag_timer)) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0))
-								ret = timer_delete(&defrag_info->defrag_timer);
-#else
 								ret = del_timer(&defrag_info->defrag_timer);
-#endif
 							}
 							kfree(defrag_info);
 							spin_unlock_bh(&rwnx_hw->defrag_lock);
@@ -2629,13 +2599,8 @@ check_len_update:
                 }
 
                 if (hw_rxhdr->flags_is_4addr && !rwnx_vif->use_4addr) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 17, 0)
-                    cfg80211_rx_unexpected_4addr_frame(rwnx_vif->ndev,
-                                                       sta->mac_addr, -1, GFP_ATOMIC);
-#else
-                    cfg80211_rx_unexpected_4addr_frame(rwnx_vif->ndev,
-                                                       sta->mac_addr, GFP_ATOMIC);
-#endif
+                    rwnx_cfg80211_rx_unexpected_4addr_frame(rwnx_vif->ndev,
+                                                            sta->mac_addr, GFP_ATOMIC);
                 }
             }
 

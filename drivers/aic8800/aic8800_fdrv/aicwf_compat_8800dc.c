@@ -3511,15 +3511,12 @@ int	rwnx_plat_userconfig_load_8800dw(struct rwnx_hw *rwnx_hw){
     int size;
     u32 *dst=NULL;
     char *filename = FW_USERCONFIG_NAME_8800DW;
-    if (rwnx_hw->usbdev->pid == USB_PRODUCT_ID_TENDA 
-        || rwnx_hw->usbdev->pid == USB_PRODUCT_ID_AIC8800FC_CUS3
-        || rwnx_hw->usbdev->pid == USB_PRODUCT_ID_AIC8800FC_CUS5
-        || rwnx_hw->usbdev->pid == USB_PRODUCT_ID_AIC8800FC_CUS6) {
+    if (rwnx_hw->usbdev->pid == USB_PRODUCT_ID_TENDA) {
         filename = FW_USERCONFIG_NAME_8800DW_W311;
     } else if (rwnx_hw->usbdev->pid == USB_PRODUCT_ID_TENDA_U2
         || rwnx_hw->usbdev->pid == USB_PRODUCT_ID_AIC8800FC_CUS1
         || rwnx_hw->usbdev->pid == USB_PRODUCT_ID_AIC8800FC_CUS2
-        || rwnx_hw->usbdev->pid == USB_PRODUCT_ID_AIC8800FC_CUS4) {
+        || rwnx_hw->usbdev->pid == USB_PRODUCT_ID_AIC8800FC_CUS3) {
         filename = FW_USERCONFIG_NAME_8800DW_U2;
     }
 
